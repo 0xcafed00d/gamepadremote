@@ -3,10 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/simulatedsimian/joystick"
 	"io"
+	"net"
 	"os"
 	"time"
+
+	"github.com/simulatedsimian/joystick"
+	"github.com/tarm/serial"
 )
 
 type Config struct {
@@ -36,25 +39,37 @@ func init() {
 	}
 }
 
+func exitOnError(err error) {
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
 func openComms(config Config) io.ReadWriteCloser {
 	if len(config.NetHost) > 0 && config.NetPort != 0 {
-
+		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", config.NetHost, config.NetPort))
+		exitOnError(err)
+		return conn
 	}
 
 	if len(config.SerialDevice) > 0 && config.SerialSpeed != 0 {
-
+		serialcfg := serial.Config{Name: config.SerialDevice, Baud: config.SerialSpeed}
+		port, err := serial.OpenPort(&serialcfg)
+		exitOnError(err)
+		return port
 	}
+
+	fmt.Fprintln(os.Stderr, "comms port incorrectly specified")
+	flag.Usage()
+	os.Exit(1)
 
 	return nil
 }
 
 func openJoystick(config Config) joystick.Joystick {
 	js, err := joystick.Open(config.JoystickIdx)
-
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	exitOnError(err)
 
 	return js
 }
@@ -69,16 +84,21 @@ func main() {
 
 	js := openJoystick(config)
 	comms := openComms(config)
-	//defer comms.Close()
+	defer comms.Close()
 
 	ticker := time.NewTicker(time.Duration(config.RateMS) * time.Millisecond)
 
 	for {
 		<-ticker.C
-		fmt.Println("tick")
+		state, err := js.Read()
+		exitOnError(err)
+		packet := fmt.Sprintf("!J%04x|%04x|%04x|%04x|%04x",
+			state.AxisData[0],
+			state.AxisData[0],
+			state.AxisData[0],
+			state.AxisData[0],
+			uint16(state.Buttons))
 
+		fmt.Println(packet)
 	}
-
-	js = js
-	comms = comms
 }
