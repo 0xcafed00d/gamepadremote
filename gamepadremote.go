@@ -13,19 +13,21 @@ import (
 )
 
 type Config struct {
-	Help         bool
-	SerialDevice string
-	SerialSpeed  int
-	NetHost      string
-	NetPort      int
-	RateMS       int
-	JoystickIdx  int
+	Help          bool
+	SerialDevice  string
+	SerialSpeed   int
+	NetHost       string
+	NetPort       int
+	ConsoleOutput bool
+	RateMS        int
+	JoystickIdx   int
 }
 
 var config Config
 
 func init() {
 	flag.BoolVar(&config.Help, "h", false, "display help")
+	flag.BoolVar(&config.ConsoleOutput, "c", false, "output to console")
 	flag.StringVar(&config.SerialDevice, "d", "", "serial device name")
 	flag.IntVar(&config.SerialSpeed, "b", 9600, "serial baudrate")
 	flag.IntVar(&config.RateMS, "r", 100, "sample rate in ms")
@@ -47,6 +49,10 @@ func exitOnError(err error) {
 }
 
 func openComms(config Config) io.ReadWriteCloser {
+	if config.ConsoleOutput {
+		return os.Stdout
+	}
+
 	if len(config.NetHost) > 0 && config.NetPort != 0 {
 		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", config.NetHost, config.NetPort))
 		exitOnError(err)
@@ -74,6 +80,15 @@ func openJoystick(config Config) joystick.Joystick {
 	return js
 }
 
+func checksum(s string) (ch byte) {
+
+	for i := 0; i < len(s); i++ {
+		ch += s[i]
+	}
+	ch = ^ch + 1
+	return
+}
+
 func main() {
 	flag.Parse()
 
@@ -88,17 +103,24 @@ func main() {
 
 	ticker := time.NewTicker(time.Duration(config.RateMS) * time.Millisecond)
 
+	if !config.ConsoleOutput {
+		go func(r io.Reader) {
+			io.Copy(os.Stdout, r)
+		}(comms)
+	}
+
 	for {
 		<-ticker.C
 		state, err := js.Read()
 		exitOnError(err)
 		packet := fmt.Sprintf("!J%04x|%04x|%04x|%04x|%04x",
-			state.AxisData[0],
-			state.AxisData[0],
-			state.AxisData[0],
-			state.AxisData[0],
-			uint16(state.Buttons))
+			uint16(state.Buttons),
+			uint16(state.AxisData[0]),
+			uint16(state.AxisData[1]),
+			uint16(state.AxisData[2]),
+			uint16(state.AxisData[3]))
 
-		fmt.Println(packet)
+		_, err = fmt.Fprintf(comms, "%s#%02x\n", packet, checksum(packet))
+		exitOnError(err)
 	}
 }
