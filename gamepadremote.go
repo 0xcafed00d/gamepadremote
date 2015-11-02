@@ -117,8 +117,8 @@ func main() {
 			uint16(state.Buttons),
 			uint16(state.AxisData[0]),
 			uint16(state.AxisData[1]),
-			uint16(state.AxisData[2]),
-			uint16(state.AxisData[3]))
+			uint16(state.AxisData[3]),
+			uint16(state.AxisData[4]))
 
 		_, err = fmt.Fprintf(comms, "%s#%02x\n", packet, checksum(packet))
 		exitOnError(err)
