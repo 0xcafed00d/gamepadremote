@@ -10,11 +10,11 @@ $ go get github.com/simulatedsimian/gamepadremote
 ```
 gamepadremote [options]
   -b int      serial baudrate (default 9600)
-  -c	        output to console
+  -c          output to console
   -d string   serial device name
-  -h	        display help
-  -j int    	gamepad index (default 0)
-  -n string  	network host name
-  -p int    	network port
-  -r int    	sample rate in ms (default 100)
+  -h          display help
+  -j int      gamepad index (default 0)
+  -n string   network host name
+  -p int      network port
+  -r int      sample rate in ms (default 100)
 ```
