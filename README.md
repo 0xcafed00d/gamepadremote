@@ -7,7 +7,8 @@ $ go get github.com/simulatedsimian/gamepadremote
 ```
 
 ## Usage:
-```gamepadremote [options]
+```
+gamepadremote [options]
   -b int      serial baudrate (default 9600)
   -c	        output to console
   -d string   serial device name
